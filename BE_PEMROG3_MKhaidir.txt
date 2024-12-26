@@ -1,0 +1,291 @@
+Struktur Proyek:
+css
+Copy code
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   ├── com/
+│   │   │   │   ├── toko/
+│   │   │   │   │   ├── controller/
+│   │   │   │   │   │   ├── ProductController.java
+│   │   │   │   │   ├── model/
+│   │   │   │   │   │   ├── Product.java
+│   │   │   │   │   ├── repository/
+│   │   │   │   │   │   ├── ProductRepository.java
+│   │   │   │   │   ├── security/
+│   │   │   │   │   │   ├── JwtFilter.java
+│   │   │   │   │   ├── service/
+│   │   │   │   │   │   ├── ProductService.java
+│   │   ├── resources/
+│   │   │   ├── application.properties
+│   ├── pom.xml
+├── .gitignore
+├── README.md
+1. Model Product.java:
+java
+Copy code
+package com.toko.model;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.validation.constraints.NotNull;
+
+@Entity
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotNull
+    private String name;
+
+    private double price;
+    private int stock;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public int getStock() {
+        return stock;
+    }
+
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+}
+2. Repository ProductRepository.java:
+java
+Copy code
+package com.toko.repository;
+
+import com.toko.model.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductRepository extends JpaRepository<Product, Long> {
+}
+3. Service ProductService.java:
+java
+Copy code
+package com.toko.service;
+
+import com.toko.model.Product;
+import com.toko.repository.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class ProductService {
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    public List<Product> getAllProducts() {
+        return productRepository.findAll();
+    }
+
+    public Product createProduct(Product product) {
+        return productRepository.save(product);
+    }
+}
+4. Controller ProductController.java:
+java
+Copy code
+package com.toko.controller;
+
+import com.toko.model.Product;
+import com.toko.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.util.List;
+
+@RestController
+@RequestMapping("/products")
+public class ProductController {
+
+    @Autowired
+    private ProductService productService;
+
+    @GetMapping
+    public List<Product> getAllProducts() {
+        return productService.getAllProducts();
+    }
+
+    @PostMapping
+    public Product createProduct(@Valid @RequestBody Product product) {
+        return productService.createProduct(product);
+    }
+}
+5. JWT Filter JwtFilter.java:
+java
+Copy code
+package com.toko.security;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+
+public class JwtFilter extends OncePerRequestFilter {
+
+    private final String SECRET_KEY = "secret";  // Ganti dengan secret yang lebih aman
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, javax.servlet.http.HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String token = request.getHeader("Authorization");
+
+        if (token != null && token.startsWith("Bearer ")) {
+            String jwtToken = token.substring(7);
+            String user = Jwts.parser()
+                    .setSigningKey(SECRET_KEY)
+                    .parseClaimsJws(jwtToken)
+                    .getBody()
+                    .getSubject();
+
+            if (user != null) {
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, null);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
+6. Spring Boot Application TokoApplication.java:
+java
+Copy code
+package com.toko;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+@SpringBootApplication
+@EnableSwagger2
+public class TokoApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(TokoApplication.class, args);
+    }
+}
+7. Konfigurasi Swagger:
+Untuk mengaktifkan Swagger dan menghasilkan dokumentasi API, Anda perlu menambahkan Swagger di pom.xml:
+
+xml
+Copy code
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-boot-starter</artifactId>
+    <version>3.0.0</version>
+</dependency>
+8. File Konfigurasi application.properties:
+properties
+Copy code
+# Database Configuration
+spring.datasource.url=jdbc:mysql://localhost:3306/toko_db
+spring.datasource.username=root
+spring.datasource.password=password
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.format_sql=true
+
+# JWT Configuration
+jwt.secret=secret
+9. Dokumentasi API di README.md:
+markdown
+Copy code
+# API Documentation
+
+## 1. POST /login
+### Description:
+Login pengguna dan menerima JWT token.
+
+### Request Body:
+```json
+{
+  "email": "user@example.com",
+  "password": "userpassword"
+}
+Response Body:
+json
+Copy code
+{
+  "token": "jwt_token_string"
+}
+2. GET /products
+Description:
+Mengambil daftar produk.
+
+Response Body:
+json
+Copy code
+[
+  {
+    "id": 1,
+    "name": "Product A",
+    "price": 100,
+    "stock": 50
+  },
+  {
+    "id": 2,
+    "name": "Product B",
+    "price": 200,
+    "stock": 30
+  }
+]
+markdown
+Copy code
+
+### 10. **File `.gitignore`**:
+*.log *.class target/ .env
+
+markdown
+Copy code
+
+### 11. **File `.env`**:
+DB_HOST=localhost DB_USER=root DB_PASSWORD=password DB_NAME=toko_db JWT_SECRET=secret
+
+markdown
+Copy code
+
+### 12. **Menjalankan Aplikasi**
+1. Pastikan Anda telah menginstal **Java 17+** dan **Maven**.
+2. Jalankan aplikasi menggunakan perintah:
+   ```bash
+   mvn spring-boot:run
